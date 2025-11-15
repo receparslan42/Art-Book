@@ -44,7 +44,8 @@ class MainActivity : AppCompatActivity() {
 
         // Fetch data from SQLite database
         try {
-            val db = this.openOrCreateDatabase("Arts", MODE_PRIVATE, null) // Create or open database
+            val db =
+                this.openOrCreateDatabase("Arts", MODE_PRIVATE, null) // Create or open database
 
             // Create table if not exists
             db.execSQL("CREATE TABLE IF NOT EXISTS arts (id INTEGER PRIMARY KEY, name VARCHAR, artist VARCHAR, date VARCHAR, image BLOB)")
@@ -67,7 +68,11 @@ class MainActivity : AppCompatActivity() {
                 art.name = cursor.getString(artNameIdx)
                 art.artistName = cursor.getString(artistNameIdx)
                 art.date = cursor.getString(dateIdx)
-                art.image = BitmapFactory.decodeByteArray(cursor.getBlob(imageIdx), 0, cursor.getBlob(imageIdx).size)
+                art.image = BitmapFactory.decodeByteArray(
+                    cursor.getBlob(imageIdx),
+                    0,
+                    cursor.getBlob(imageIdx).size
+                )
 
                 artArraylist.add(art)
             }

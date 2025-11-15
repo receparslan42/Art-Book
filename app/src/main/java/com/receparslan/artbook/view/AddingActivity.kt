@@ -1,6 +1,6 @@
 package com.receparslan.artbook.view
 
-import android.Manifest
+import android.Manifest.permission.READ_EXTERNAL_STORAGE
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -13,6 +13,9 @@ import android.util.Log
 import android.widget.Toast
 import android.widget.Toast.LENGTH_LONG
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.appcompat.app.AppCompatActivity
@@ -56,7 +59,8 @@ class AddingActivity : AppCompatActivity() {
         if (key == "edit") {
             // Fetch data from SQLite database
             try {
-                val db = this.openOrCreateDatabase("Arts", MODE_PRIVATE, null) // Create or open database
+                val db =
+                    this.openOrCreateDatabase("Arts", MODE_PRIVATE, null) // Create or open database
 
                 // Create table if not exists
                 db.execSQL("CREATE TABLE IF NOT EXISTS arts (id INTEGER PRIMARY KEY, name VARCHAR, artist VARCHAR, date VARCHAR, image BLOB)")
@@ -77,7 +81,11 @@ class AddingActivity : AppCompatActivity() {
                     art.name = cursor.getString(artNameIdx)
                     art.artistName = cursor.getString(artistNameIdx)
                     art.date = cursor.getString(dateIdx)
-                    art.image = BitmapFactory.decodeByteArray(cursor.getBlob(imageIdx), 0, cursor.getBlob(imageIdx).size)
+                    art.image = BitmapFactory.decodeByteArray(
+                        cursor.getBlob(imageIdx),
+                        0,
+                        cursor.getBlob(imageIdx).size
+                    )
 
                     binding.artImageView.setImageBitmap(art.image)
                     binding.artNameEditText.setText(art.name)
@@ -102,10 +110,11 @@ class AddingActivity : AppCompatActivity() {
         art.date = binding.artTimeEditText.text.toString()
 
         // Check if the image is null
-        if (art.image == null) {
+        if (art.image == null)
             binding.artImageView.callOnClick()
-        } else {
-            val compressedImage = ByteArrayOutputStream() // Compressed image to store in the database
+        else {
+            // ByteArrayOutputStream to compress the image
+            val compressedImage = ByteArrayOutputStream()
 
             // Compress the image
             art.image?.let {
@@ -114,9 +123,9 @@ class AddingActivity : AppCompatActivity() {
             }
 
             // Query to insert or update the data
-            val query = if (key == "edit") {
+            val query = if (key == "edit")
                 "UPDATE  arts SET name = ?, artist = ?, date = ?, image = ? WHERE id = ?"
-            } else
+            else
                 "INSERT INTO arts (name, artist, date, image) VALUES (?,?,?,?)"
 
             // Insert or update the data
@@ -139,7 +148,8 @@ class AddingActivity : AppCompatActivity() {
 
             // Go back to the home page
             val intentToHomePage = Intent(this, MainActivity::class.java)
-            intentToHomePage.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
+            intentToHomePage.flags =
+                Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
             startActivity(intentToHomePage)
             finish()
         }
@@ -148,69 +158,102 @@ class AddingActivity : AppCompatActivity() {
     // This function is used to select an image from the gallery
     private fun selectImage() {
 
-        // Check the version of the SDK to use the appropriate permission
-        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-            Manifest.permission.READ_MEDIA_IMAGES
-        else
-            Manifest.permission.READ_EXTERNAL_STORAGE
+        // For Android 13 and above, use the Photo Picker API to select an image
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+            pickMediaLauncher.launch(
+                PickVisualMediaRequest.Builder()
+                    .setMediaType(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    .build()
+            )
+        else // For below Android 13, request permission and open the gallery
+            when { // Check the permission status
+                // Permission is granted
+                ContextCompat.checkSelfPermission(
+                    applicationContext,
+                    READ_EXTERNAL_STORAGE
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    val intentToGallery =
+                        Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+                    legacyGalleryLauncher.launch(intentToGallery)
+                }
 
-        // Check if the permission is granted
-        when {
-            // Permission is granted
-            ContextCompat.checkSelfPermission(applicationContext, permission) == PackageManager.PERMISSION_GRANTED -> {
-                val intentToGallery = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-                activityResultLauncher.launch(intentToGallery)
+                // Show a snackbar to explain why the permission is needed
+                ActivityCompat.shouldShowRequestPermissionRationale(
+                    this,
+                    READ_EXTERNAL_STORAGE
+                ) -> {
+                    Snackbar.make(
+                        binding.root.rootView,
+                        "Permission needed to access the gallery",
+                        Snackbar.LENGTH_INDEFINITE
+                    )
+                        .setAction("Allow") { permissionLauncher.launch(READ_EXTERNAL_STORAGE) }
+                        .show()
+                }
+
+                // Request the permission
+                else -> permissionLauncher.launch(READ_EXTERNAL_STORAGE)
             }
-
-            // Show a snackbar to explain why the permission is needed
-            ActivityCompat.shouldShowRequestPermissionRationale(this, permission) -> {
-                Snackbar.make(binding.root.rootView, "Permission needed to access the gallery", Snackbar.LENGTH_INDEFINITE)
-                    .setAction("Allow") { permissionLauncher.launch(permission) }
-                    .show()
-            }
-
-            // Request the permission
-            else -> permissionLauncher.launch(permission)
-        }
     }
 
-    // Activity result launcher to get the image from the gallery
-    private val activityResultLauncher = registerForActivityResult(StartActivityForResult()) { result ->
-        if (result.resultCode == RESULT_OK) {
-            val intentFromResult = result.data // Get the data from the result
-            intentFromResult?.let { resultIntent ->
-                val imageUri = resultIntent.data // Get the image URI from the result intent
-                imageUri?.let {
-                    try {
-                        // Check the version of the SDK to use the appropriate method to decode the image
-                        if (Build.VERSION.SDK_INT >= 28) {
-                            // Decode the image using ImageDecoder
-                            val source = ImageDecoder.createSource(contentResolver, it)
-                            art.image = ImageDecoder.decodeBitmap(source)
-                            binding.artImageView.setImageBitmap(art.image)
-                        } else {
-                            // Decode the image using BitmapFactory
-                            try {
-                                val inputStream = contentResolver.openInputStream(it)
-                                art.image = BitmapFactory.decodeStream(inputStream)
+    // Activity result launcher to pick media (for Android 13 and above)
+    private val pickMediaLauncher: ActivityResultLauncher<PickVisualMediaRequest> =
+        registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+            if (uri != null) {
+                try {
+                    // Check the version of the SDK to use the appropriate method to decode the image
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        val source = ImageDecoder.createSource(contentResolver, uri)
+                        art.image = ImageDecoder.decodeBitmap(source)
+                        binding.artImageView.setImageBitmap(art.image)
+                    }
+                } catch (e: Exception) {
+                    Log.e("PhotoPicker", "Failed to load image.", e)
+                }
+            } else {
+                Log.d("PhotoPicker", "No media selected")
+            }
+        }
+
+    // Activity result launcher to pick image from gallery (for below Android 13)
+    private val legacyGalleryLauncher =
+        registerForActivityResult(StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                val intentFromResult = result.data // Get the data from the result
+                intentFromResult?.let { resultIntent ->
+                    val imageUri = resultIntent.data // Get the image URI from the result intent
+                    imageUri?.let {
+                        try {
+                            // Check the version of the SDK to use the appropriate method to decode the image
+                            if (Build.VERSION.SDK_INT >= 28) {
+                                // Decode the image using ImageDecoder
+                                val source = ImageDecoder.createSource(contentResolver, it)
+                                art.image = ImageDecoder.decodeBitmap(source)
                                 binding.artImageView.setImageBitmap(art.image)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
+                            } else {
+                                // Decode the image using BitmapFactory
+                                try {
+                                    val inputStream = contentResolver.openInputStream(it)
+                                    art.image = BitmapFactory.decodeStream(inputStream)
+                                    binding.artImageView.setImageBitmap(art.image)
+                                } catch (e: Exception) {
+                                    Log.e("PhotoPicker", "Failed to load image.", e)
+                                }
                             }
+                        } catch (e: Exception) {
+                            Log.e("Error", e.message.toString())
                         }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
                     }
                 }
             }
         }
-    }
 
     // Request permission to access the gallery
     private val permissionLauncher = registerForActivityResult(RequestPermission()) { isGranted ->
         if (isGranted) {
-            val intentToGallery = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-            activityResultLauncher.launch(intentToGallery)
+            val intentToGallery =
+                Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+            legacyGalleryLauncher.launch(intentToGallery)
         } else
             Toast.makeText(this, "Permission needed to access the gallery", LENGTH_LONG).show()
 

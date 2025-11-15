@@ -8,7 +8,8 @@ import com.receparslan.artbook.databinding.RecyclerRowBinding
 import com.receparslan.artbook.model.Art
 import com.receparslan.artbook.view.DetailActivity
 
-class RecyclerAdapter(private val artArrayList: ArrayList<Art>) : RecyclerView.Adapter<RecyclerAdapter.ViewHolder>() {
+class RecyclerAdapter(private val artArrayList: ArrayList<Art>) :
+    RecyclerView.Adapter<RecyclerAdapter.ViewHolder>() {
 
     // ViewBinding
     private lateinit var binding: RecyclerRowBinding

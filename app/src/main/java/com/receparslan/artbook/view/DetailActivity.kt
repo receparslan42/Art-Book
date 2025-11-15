@@ -36,7 +36,12 @@ class DetailActivity : AppCompatActivity() {
         try {
             val database = this.openOrCreateDatabase("Arts", MODE_PRIVATE, null)
             lateinit var cursor: Cursor
-            art.id?.let { cursor = database.rawQuery("SELECT * FROM arts WHERE id = ? ", arrayOf(art.id.toString())) }
+            art.id?.let {
+                cursor = database.rawQuery(
+                    "SELECT * FROM arts WHERE id = ? ",
+                    arrayOf(art.id.toString())
+                )
+            }
 
             val artNameIdx = cursor.getColumnIndex("name")
             val artistNameIdx = cursor.getColumnIndex("artist")
@@ -47,7 +52,11 @@ class DetailActivity : AppCompatActivity() {
                 art.name = cursor.getString(artNameIdx)
                 art.artistName = cursor.getString(artistNameIdx)
                 art.date = cursor.getString(dateIdx)
-                art.image = BitmapFactory.decodeByteArray(cursor.getBlob(imageIdx), 0, cursor.getBlob(imageIdx).size)
+                art.image = BitmapFactory.decodeByteArray(
+                    cursor.getBlob(imageIdx),
+                    0,
+                    cursor.getBlob(imageIdx).size
+                )
             }
 
             cursor.close()
