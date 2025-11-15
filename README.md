@@ -36,9 +36,9 @@ Resources and view bindings are generated under `app/build/` during compilation.
 
 ## Screenshots
 
-| List                                                      | Detail                                                        | Add/Edit                                                     |
-|-----------------------------------------------------------|---------------------------------------------------------------|--------------------------------------------------------------|
-| <img src="screenshots/list_screen.jpg" alt="List Screen"> | <img src="screenshots/detail_screen.jpg" alt="Detail Screen"> | <img src="screenshots/add_screen.jpg" alt="Add/Edit Screen"> |
+| List                                                                  | Detail                                                                    | Add/Edit                                                                 |
+|-----------------------------------------------------------------------|---------------------------------------------------------------------------|--------------------------------------------------------------------------|
+| <img src="screenshots/list_screen.jpg" alt="List Screen" width="250"> | <img src="screenshots/detail_screen.jpg" alt="Detail Screen" width="250"> | <img src="screenshots/add_screen.jpg" alt="Add/Edit Screen" width="250"> |
 
 ## Data Storage
 A single table `arts`:
